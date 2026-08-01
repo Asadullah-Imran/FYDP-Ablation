@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Sparkles, Cpu, Search, ChevronDown, ChevronUp, Database, ArrowRight, Activity, FlaskConical } from 'lucide-react';
 import { useData } from '@/context/DataContext';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function AblationPage() {
   const { sections, ablationModels, globalLoading: loading, fetchGlobalData } = useData();
@@ -12,6 +13,7 @@ export default function AblationPage() {
 
   useEffect(() => {
     fetchGlobalData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Format a mean ± std value for display
@@ -101,8 +103,18 @@ export default function AblationPage() {
       )}
 
       {loading ? (
-        <div className="flex justify-center p-12">
-          <Activity className="h-8 w-8 text-tertiary animate-pulse" />
+        <div className="space-y-6">
+          {[1, 2].map((i) => (
+            <div key={i} className="bg-surface-container-lowest border border-outline-border rounded-lg p-6 md:p-8 animate-pulse shadow-sm">
+              <div className="flex items-center gap-4 mb-4">
+                <div className="w-12 h-12 bg-tertiary-container/30 rounded-lg"></div>
+                <div className="flex-1">
+                  <div className="h-6 w-48 bg-surface-container-high rounded mb-2"></div>
+                  <div className="h-4 w-32 bg-surface-container-high rounded"></div>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       ) : filteredBaseNames.length === 0 ? (
         <div className="text-center py-16 bg-surface-container-lowest border border-dashed border-outline-variant rounded-lg max-w-2xl mx-auto p-8 shadow-sm">
@@ -133,7 +145,12 @@ export default function AblationPage() {
             const usedSections = Array.from(datasetSectionsMap.values());
 
             return (
-              <div key={baseName} className="bg-surface-container-lowest border border-outline-border rounded-lg shadow-sm overflow-hidden transition-all duration-300">
+              <motion.div 
+                key={baseName} 
+                className="bg-surface-container-lowest border border-outline-border rounded-lg shadow-sm overflow-hidden"
+                whileHover={{ scale: 1.01 }}
+                transition={{ type: "spring", stiffness: 400, damping: 25 }}
+              >
                 {/* Base Model Header / Card */}
                 <div 
                   className={`p-5 md:p-6 cursor-pointer flex justify-between items-center transition-colors hover:bg-surface-container-low/50 ${isExpanded ? 'bg-surface-container-low border-b border-outline-border' : ''}`}
@@ -166,8 +183,16 @@ export default function AblationPage() {
                 </div>
 
                 {/* Expanded Datasets View */}
-                {isExpanded && (
-                  <div className="p-4 md:p-6 bg-surface-container-lowest animate-in slide-in-from-top-4 duration-300 space-y-8">
+                <AnimatePresence>
+                  {isExpanded && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.3, ease: 'easeInOut' }}
+                      className="overflow-hidden"
+                    >
+                      <div className="p-4 md:p-6 bg-surface-container-lowest space-y-8">
                     {usedSections.length === 0 ? (
                       <p className="text-sm text-on-surface-variant italic">No dataset results found for this model.</p>
                     ) : (
@@ -278,11 +303,13 @@ export default function AblationPage() {
                       })
                     )}
                   </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
+        );
+      })}
+    </div>
       )}
     </div>
   );

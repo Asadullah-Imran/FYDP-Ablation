@@ -11,7 +11,7 @@ import mermaid from 'mermaid';
 import { useAuth } from '@/context/AuthContext';
 import { usePopup } from '@/context/PopupContext';
 import { useData } from '@/context/DataContext';
-import { Edit2, Trash2, Check, X, Eye, EyeOff, Edit3, ChevronsUpDown, Search, Image, ArrowLeft, Cpu, Layers, BookOpen, AlertTriangle, Code, ExternalLink, Info, RefreshCw, Play, Terminal, Activity } from 'lucide-react';
+import { Edit2, Trash2, Check, X, Eye, EyeOff, Edit3, ChevronsUpDown, Search, Image as ImageIcon, ArrowLeft, Cpu, Layers, BookOpen, AlertTriangle, Code, ExternalLink, Info, RefreshCw, Play, Terminal, Activity } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
 
@@ -131,6 +131,7 @@ export default function ModelDetail() {
     return () => {
       active = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   useEffect(() => {
@@ -163,9 +164,20 @@ export default function ModelDetail() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 space-y-4">
-        <div className="h-10 w-10 border-4 border-primary-container border-t-transparent rounded-full animate-spin"></div>
-        <p className="text-on-surface-variant font-medium text-sm animate-pulse">Loading model blueprint details...</p>
+      <div className="max-w-4xl mx-auto space-y-6 animate-pulse">
+        <div className="bg-surface-container-lowest border border-outline-border rounded-lg p-6 md:p-8 shadow-sm">
+          <div className="h-10 w-3/4 bg-surface-container-high rounded mb-4"></div>
+          <div className="h-6 w-1/2 bg-surface-container-high rounded mb-8"></div>
+          
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+            <div className="h-20 bg-surface-container-high rounded"></div>
+            <div className="h-20 bg-surface-container-high rounded"></div>
+            <div className="h-20 bg-surface-container-high rounded"></div>
+            <div className="h-20 bg-surface-container-high rounded"></div>
+          </div>
+          
+          <div className="h-64 bg-surface-container-high rounded"></div>
+        </div>
       </div>
     );
   }
@@ -966,11 +978,12 @@ export default function ModelDetail() {
             {model.methodologyImages && model.methodologyImages.length > 0 && (
               <div className="space-y-4">
                 <h2 className="text-xl font-bold font-outfit border-b border-outline-border pb-2.5 mb-6 text-on-surface flex items-center gap-2">
-                  <Image className="h-5 w-5 text-primary-container" />
+                  <ImageIcon className="h-5 w-5 text-primary-container" />
                   Methodology Gallery
                 </h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {model.methodologyImages.map((img, idx) => (
+                    /* eslint-disable-next-line @next/next/no-img-element */
                     <img 
                       key={idx} 
                       src={img} 
@@ -1341,7 +1354,7 @@ export default function ModelDetail() {
                   ) : (
                     <div className="text-on-surface-variant italic text-xs text-center pt-10 flex flex-col items-center gap-2">
                       <Info className="h-5 w-5 text-on-surface-variant/40" />
-                      Nothing to preview. Select the 'Editor' tab to add methodology text.
+                      Nothing to preview. Select the &apos;Editor&apos; tab to add methodology text.
                     </div>
                   )}
                 </div>
@@ -1366,7 +1379,7 @@ export default function ModelDetail() {
             {/* methodology images management */}
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-1.5 font-outfit flex items-center gap-1.5">
-                <Image className="h-4 w-4 text-primary-container" />
+                <ImageIcon className="h-4 w-4 text-primary-container" />
                 Existing Methodology Gallery
               </label>
               
@@ -1374,6 +1387,7 @@ export default function ModelDetail() {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                   {editData.methodologyImages.map((img, idx) => (
                     <div key={idx} className="relative group border border-outline-border rounded-default overflow-hidden h-24 bg-surface-container-low shadow-sm">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={img} alt={`Existing Upload ${idx + 1}`} className="w-full h-full object-cover" />
                       <button
                         type="button"
@@ -1391,7 +1405,7 @@ export default function ModelDetail() {
               )}
 
               <label className="block text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-1.5 font-outfit flex items-center gap-1.5">
-                <Image className="h-4 w-4 text-primary-container" />
+                <ImageIcon className="h-4 w-4 text-primary-container" />
                 Upload New Images (Gallery Upload) - Multiple Allowed
               </label>
 
@@ -1401,6 +1415,7 @@ export default function ModelDetail() {
                     const localUrl = URL.createObjectURL(file);
                     return (
                       <div key={idx} className="relative group border border-outline-border rounded-default overflow-hidden h-24 bg-surface-container-low shadow-sm">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src={localUrl} alt={`New Selected Upload ${idx + 1}`} className="w-full h-full object-cover" />
                         <button
                           type="button"

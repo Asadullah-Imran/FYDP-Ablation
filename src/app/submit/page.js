@@ -220,6 +220,7 @@ export default function SubmitModel() {
       }
     };
     fetchSections();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   // Listen for click outside to close dropdowns
@@ -347,7 +348,7 @@ export default function SubmitModel() {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     if (isSubmitting) return;
     setIsSubmitting(true);
     const token = localStorage.getItem('token');
@@ -522,14 +523,28 @@ export default function SubmitModel() {
         {/* Visual anchor bar */}
         <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-primary to-primary-container"></div>
         
-        <div className="mb-8">
-          <h1 className="text-3xl font-extrabold text-on-surface font-outfit tracking-tight flex items-center gap-2">
-            <UploadCloud className="h-7 w-7 text-primary-container" />
-            Submit Bioinformatics Model
-          </h1>
-          <p className="text-sm text-on-surface-variant mt-1.5">
-            Register your spatial multi-omics model benchmarks, ablation statistics, and mathematical methodology.
-          </p>
+        <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-extrabold text-on-surface font-outfit tracking-tight flex items-center gap-2">
+              <UploadCloud className="h-7 w-7 text-primary-container" />
+              Submit Bioinformatics Model
+            </h1>
+            <p className="text-sm text-on-surface-variant mt-1.5">
+              Register your spatial multi-omics model benchmarks, ablation statistics, and mathematical methodology.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={isSubmitting}
+            className="px-6 py-2.5 bg-primary text-on-primary rounded-default font-bold text-sm hover:bg-primary/90 transition-all shadow-md active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            {isSubmitting ? (
+              <span className="flex items-center gap-2"><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Processing...</span>
+            ) : (
+              <span className="flex items-center gap-2"><UploadCloud className="h-4 w-4" /> Quick Submit</span>
+            )}
+          </button>
         </div>
 
         <div className="flex bg-surface-container-low p-1 rounded-default border border-outline-border mb-6 w-full max-w-sm">
@@ -919,7 +934,7 @@ export default function SubmitModel() {
                     ) : (
                       <div className="text-on-surface-variant italic text-xs text-center pt-10 flex flex-col items-center gap-2">
                         <Info className="h-5 w-5 text-on-surface-variant/40" />
-                        Nothing to preview. Select the 'Editor' tab to add methodology text.
+                        Nothing to preview. Select the &apos;Editor&apos; tab to add methodology text.
                       </div>
                     )}
                   </div>
@@ -953,6 +968,7 @@ export default function SubmitModel() {
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       {existingImages.map((url, idx) => (
                         <div key={idx} className="relative group border border-outline-border rounded-default overflow-hidden h-24 bg-surface-container-low shadow-sm">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img src={url} alt={`Pre-existing copied gallery image ${idx + 1}`} className="w-full h-full object-cover" />
                           <button
                             type="button"
@@ -974,6 +990,7 @@ export default function SubmitModel() {
                       const localUrl = URL.createObjectURL(file);
                       return (
                         <div key={idx} className="relative group border border-outline-border rounded-default overflow-hidden h-24 bg-surface-container-low shadow-sm">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img src={localUrl} alt={`Selected Upload ${idx + 1}`} className="w-full h-full object-cover" />
                           <button
                             type="button"

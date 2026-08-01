@@ -102,7 +102,8 @@ FYDP-LeaderBoard-NextJS/
         ├── User.js                # User accounts & roles schema
         ├── DatasetSection.js      # Spatial dataset benchmark schema
         ├── ModelProfile.js        # Shared model metadata schema
-        └── ModelSubmission.js     # Model evaluation submission schema
+        ├── ModelSubmission.js     # Model evaluation submission schema
+        └── AblationSubmission.js  # Ablation studies submission schema
 ```
 
 ---
@@ -116,6 +117,10 @@ erDiagram
     User ||--o{ ModelSubmission : "authors"
     DatasetSection ||--o{ ModelSubmission : "benchmarks on"
     ModelProfile ||--o{ ModelSubmission : "describes"
+    
+    User ||--o{ AblationSubmission : "authors"
+    DatasetSection ||--o{ AblationSubmission : "benchmarks on"
+    ModelProfile ||--o{ AblationSubmission : "describes"
     
     User {
         ObjectId _id PK
@@ -153,6 +158,20 @@ erDiagram
         ObjectId _id PK
         String name
         ObjectId modelProfileId FK
+        ObjectId authorId FK
+        ObjectId datasetSectionId FK
+        Array results "clusterResultSchema[]"
+        String colabUrl
+        String kaggleUrl
+        Date createdAt
+        Date updatedAt
+    }
+
+    AblationSubmission {
+        ObjectId _id PK
+        String name
+        String baseModelName
+        ObjectId baseModelProfileId FK
         ObjectId authorId FK
         ObjectId datasetSectionId FK
         Array results "clusterResultSchema[]"
@@ -223,6 +242,14 @@ Stores an evaluation run for a given model on a specific `DatasetSection`.
   3. No duplicate evaluations for the same `(clusterAlgorithm, clusterSize, seed)` combination exist.
   4. At least **two primary metrics** (`scoreARI`, `scoreNMI`, `scoreSilhouette`) are provided for every evaluation entry.
 - `post('init')`: Automatically converts legacy flat submission documents into the multi-resolution `results` array format on load.
+
+#### 5. AblationSubmission Schema (`src/models/AblationSubmission.js`)
+Stores evaluation runs specific to ablation studies (tracking component impact).
+- Shares the same `clusterResultSchema` sub-document for `results`.
+- `name` (String, required): Name of the ablated model variant.
+- `baseModelName` (String, required): Name of the original architecture this variant derives from.
+- `baseModelProfileId` (ObjectId, ref: `'ModelProfile'`): Optional link to the base model's metadata profile.
+- Includes identical markdown, colab, and github URL fields to `ModelSubmission` for standalone ablated variant documentation.
 
 ---
 

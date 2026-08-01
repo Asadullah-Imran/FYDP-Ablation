@@ -34,6 +34,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchGlobalData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const nonEmptySections = sections.filter(section => 
@@ -918,6 +919,7 @@ export default function Dashboard() {
                       <div>
                         {modelA.methodologyImages && modelA.methodologyImages.length > 0 ? (
                           <div className="border border-outline-border rounded-default overflow-hidden bg-surface-container-low max-h-48 flex items-center justify-center">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img src={modelA.methodologyImages[0]} alt={modelA.name} className="max-h-48 w-full object-contain" />
                           </div>
                         ) : <div className="border border-dashed border-outline-variant/60 rounded-default h-32 flex items-center justify-center text-xs italic text-on-surface-variant/50">No Methodology Figure</div>}
@@ -926,6 +928,7 @@ export default function Dashboard() {
                       <div>
                         {modelB.methodologyImages && modelB.methodologyImages.length > 0 ? (
                           <div className="border border-outline-border rounded-default overflow-hidden bg-surface-container-low max-h-48 flex items-center justify-center">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img src={modelB.methodologyImages[0]} alt={modelB.name} className="max-h-48 w-full object-contain" />
                           </div>
                         ) : <div className="border border-dashed border-outline-variant/60 rounded-default h-32 flex items-center justify-center text-xs italic text-on-surface-variant/50">No Methodology Figure</div>}

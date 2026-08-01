@@ -135,8 +135,9 @@ sequenceDiagram
     participant UploadAPI as /api/upload (API Route)
     participant Cloudinary as Cloudinary CDN
     participant ModelAPI as /api/models (API Route)
+    participant AblationAPI as /api/ablation (API Route)
     participant Auth as verifyAuth (JWT Validator)
-    participant DB as MongoDB (ModelSubmission Schema)
+    participant DB as MongoDB (ModelSubmission/AblationSubmission Schema)
 
     Researcher->>UI: Fill Metadata, Pastes Metrics, Uploads Images
     
@@ -150,13 +151,17 @@ sequenceDiagram
     end
     
     UI->>UI: Validate Evaluations (clusterSize > 0, >=2 Primary Metrics)
-    UI->>ModelAPI: POST JSON (modelPayload: results, markdown, images, flows, repo url)
-    ModelAPI->>Auth: verifyAuth(req)
-    Auth-->>ModelAPI: Current User Object
-    ModelAPI->>ModelAPI: Map Results Array (Parse clusterSize as Int, scores as Float, map visible defaults)
-    ModelAPI->>DB: Save ModelSubmission Document
-    DB-->>ModelAPI: Created Document
-    ModelAPI-->>UI: Response 201 Created
+    alt is Base Model Submission
+        UI->>ModelAPI: POST JSON (modelPayload)
+        ModelAPI->>Auth: verifyAuth(req)
+        ModelAPI->>DB: Upsert ModelSubmission / ModelProfile
+        ModelAPI-->>UI: Response 201 Created
+    else is Ablation Submission
+        UI->>AblationAPI: POST JSON (modelPayload)
+        AblationAPI->>Auth: verifyAuth(req)
+        AblationAPI->>DB: Upsert AblationSubmission
+        AblationAPI-->>UI: Response 201 Created
+    end
     UI->>UI: DataContext clearCache()
     UI->>UI: Redirect to Dashboard (/)
 ```
@@ -165,7 +170,7 @@ sequenceDiagram
 2. **Buffer Conversion**: The `/api/upload` endpoint converts file arrays into a Node.js `Buffer`.
 3. **Cloudinary Stream**: The buffer is piped directly into Cloudinary using `cloudinary.uploader.upload_stream` under the `leaderboard-methodologies` namespace.
 4. **Validation Check**: The client verifies that at least two primary metrics are filled per cluster evaluation.
-5. **Database Transaction**: A POST request containing the mapped parameters is sent to `/api/models`. The route handler validates authorization via the cookies/bearer headers, parses values, and performs a database `save()` transaction.
+5. **Database Transaction**: Depending on the toggle, a POST request is sent to `/api/models` (for Base Models) or `/api/ablation` (for Ablation Studies). The route handler validates authorization via the cookies/bearer headers, parses values, and performs a database `findOne` and `save()` transaction (upserting into the existing document if dataset/cluster size match).
 6. **Cache Reset**: Client cache is cleared via `DataContext.clearCache()` to ensure fresh dashboard renders.
 
 ---
