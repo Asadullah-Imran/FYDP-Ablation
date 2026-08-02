@@ -216,6 +216,7 @@ export default function ModelDetail() {
 
     const initialResults = model.results && model.results.length > 0
       ? model.results.map(res => ({
+          datasetSectionId: res.datasetSectionId?._id || res.datasetSectionId || model.datasetSectionId?._id || model.datasetSectionId || '',
           clusterSize: res.clusterSize !== undefined && res.clusterSize !== null ? res.clusterSize.toString() : '',
           clusterAlgorithm: res.clusterAlgorithm || 'unknown',
           seed: res.seed !== undefined && res.seed !== null ? res.seed.toString() : '',
@@ -228,6 +229,7 @@ export default function ModelDetail() {
           visible: res.visible !== false
         }))
       : [{
+          datasetSectionId: model.datasetSectionId?._id || model.datasetSectionId || '',
           clusterSize: model.clusterSize !== undefined && model.clusterSize !== null ? model.clusterSize.toString() : '',
           clusterAlgorithm: 'unknown',
           seed: '',

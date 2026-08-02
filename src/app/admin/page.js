@@ -21,7 +21,9 @@ import {
   FileText,
   Clock,
   RefreshCw,
-  EyeOff
+  EyeOff,
+  Eye,
+  FlaskConical
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { usePopup } from '@/context/PopupContext';
@@ -48,6 +50,7 @@ export default function AdminPanel() {
   const [users, setUsers] = useState([]);
   const [sections, setSections] = useState([]);
   const [models, setModels] = useState([]);
+  const [ablationModels, setAblationModels] = useState([]);
   
   // Loading & Action feedback
   const [loading, setLoading] = useState(true);
@@ -80,15 +83,17 @@ export default function AdminPanel() {
     const headers = { Authorization: `Bearer ${token}` };
 
     try {
-      const [usersRes, sectionsRes, modelsRes] = await Promise.all([
+      const [usersRes, sectionsRes, modelsRes, ablationRes] = await Promise.all([
         axios.get(`${API_URL}/auth/users`, { headers }),
         axios.get(`${API_URL}/sections`),
-        axios.get(`${API_URL}/models`)
+        axios.get(`${API_URL}/models`),
+        axios.get(`${API_URL}/ablation`)
       ]);
       
       setUsers(usersRes.data);
       setSections(sectionsRes.data);
       setModels(modelsRes.data);
+      setAblationModels(ablationRes.data);
     } catch (error) {
       console.error('Error loading admin panel stats:', error);
       showFeedback('error', 'Failed to retrieve administrative records.');
@@ -229,10 +234,10 @@ export default function AdminPanel() {
   };
 
   // Model Handlers (Admins can delete any model)
-  const handleDeleteModel = async (modelId, modelName) => {
+  const handleDeleteModel = async (type, modelId, modelName) => {
     const confirmed = await showConfirm(
       'Delete Model Submission',
-      `Are you absolutely sure you want to delete model submission "${modelName}"? This action is permanent.`,
+      `Are you absolutely sure you want to delete ${type} submission "${modelName}"? This action is permanent.`,
       'danger'
     );
     if (!confirmed) {
@@ -243,12 +248,46 @@ export default function AdminPanel() {
     const headers = { Authorization: `Bearer ${token}` };
 
     try {
-      await axios.delete(`${API_URL}/models/${modelId}`, { headers });
-      setModels((prev) => prev.filter(m => m._id !== modelId));
-      showFeedback('success', `Model submission "${modelName}" has been successfully removed.`);
+      const endpoint = type === 'ablation' ? 'ablation' : 'models';
+      await axios.delete(`${API_URL}/${endpoint}/${modelId}`, { headers });
+      if (type === 'ablation') {
+        setAblationModels((prev) => prev.filter(m => m._id !== modelId));
+      } else {
+        setModels((prev) => prev.filter(m => m._id !== modelId));
+      }
+      showFeedback('success', `${type === 'ablation' ? 'Ablation' : 'Model'} submission "${modelName}" has been successfully removed.`);
     } catch (error) {
       console.error('Error deleting model submission:', error);
       showFeedback('error', 'Failed to remove model submission.');
+    }
+  };
+
+  const handleToggleModelVisibility = async (type, modelId, clusterSize, currentVisibility) => {
+    const token = localStorage.getItem('token');
+    const headers = { Authorization: `Bearer ${token}` };
+    
+    try {
+      const list = type === 'ablation' ? ablationModels : models;
+      const model = list.find(m => m._id === modelId);
+      if (!model) return;
+      
+      const updatedResults = (model.results || []).map(r => 
+        r.clusterSize === clusterSize ? { ...r, visible: !currentVisibility } : r
+      );
+
+      const endpoint = type === 'ablation' ? 'ablation' : 'models';
+      await axios.put(`${API_URL}/${endpoint}/${modelId}`, { results: updatedResults }, { headers });
+      
+      if (type === 'ablation') {
+        setAblationModels((prev) => prev.map(m => m._id === modelId ? { ...m, results: updatedResults } : m));
+      } else {
+        setModels((prev) => prev.map(m => m._id === modelId ? { ...m, results: updatedResults } : m));
+      }
+      
+      showFeedback('success', `Evaluation visibility updated.`);
+    } catch (error) {
+      console.error('Error toggling visibility:', error);
+      showFeedback('error', 'Failed to update visibility status.');
     }
   };
 
@@ -259,43 +298,51 @@ export default function AdminPanel() {
   );
 
   const flattenedModels = [];
-  models.forEach(model => {
-    if (model.results && model.results.length > 0) {
-      model.results.forEach(res => {
+  
+  const processModelList = (list, type) => {
+    list.forEach(model => {
+      if (model.results && model.results.length > 0) {
+        model.results.forEach(res => {
+          flattenedModels.push({
+            _id: model._id,
+            resultKey: `${model._id}-${res.clusterSize}`,
+            type,
+            name: model.name,
+            authorId: model.authorId,
+            datasetSectionId: model.datasetSectionId,
+            clusterSize: res.clusterSize,
+            scoreARI: res.scoreARI,
+            scoreNMI: res.scoreNMI,
+            scoreSilhouette: res.scoreSilhouette,
+            scoreAMI: res.scoreAMI,
+            scoreHomogeneity: res.scoreHomogeneity,
+            scoreVMeasure: res.scoreVMeasure,
+            visible: res.visible !== false
+          });
+        });
+      } else {
         flattenedModels.push({
           _id: model._id,
-          resultKey: `${model._id}-${res.clusterSize}`,
+          resultKey: `${model._id}-legacy`,
+          type,
           name: model.name,
           authorId: model.authorId,
           datasetSectionId: model.datasetSectionId,
-          clusterSize: res.clusterSize,
-          scoreARI: res.scoreARI,
-          scoreNMI: res.scoreNMI,
-          scoreSilhouette: res.scoreSilhouette,
-          scoreAMI: res.scoreAMI,
-          scoreHomogeneity: res.scoreHomogeneity,
-          scoreVMeasure: res.scoreVMeasure,
-          visible: res.visible !== false
+          clusterSize: model.clusterSize,
+          scoreARI: model.scoreARI,
+          scoreNMI: model.scoreNMI,
+          scoreSilhouette: model.scoreSilhouette,
+          scoreAMI: model.scoreAMI,
+          scoreHomogeneity: model.scoreHomogeneity,
+          scoreVMeasure: model.scoreVMeasure,
+          visible: true
         });
-      });
-    } else {
-      flattenedModels.push({
-        _id: model._id,
-        resultKey: `${model._id}-legacy`,
-        name: model.name,
-        authorId: model.authorId,
-        datasetSectionId: model.datasetSectionId,
-        clusterSize: model.clusterSize,
-        scoreARI: model.scoreARI,
-        scoreNMI: model.scoreNMI,
-        scoreSilhouette: model.scoreSilhouette,
-        scoreAMI: model.scoreAMI,
-        scoreHomogeneity: model.scoreHomogeneity,
-        scoreVMeasure: model.scoreVMeasure,
-        visible: true
-      });
-    }
-  });
+      }
+    });
+  };
+
+  processModelList(models, 'base');
+  processModelList(ablationModels, 'ablation');
 
   const filteredModels = flattenedModels.filter(m => 
     m.name.toLowerCase().includes(searchModel.toLowerCase()) ||
@@ -717,12 +764,22 @@ export default function AdminPanel() {
                     </tr>
                   ) : (
                     filteredModels.map((item) => (
-                      <tr key={item.resultKey} className="hover:bg-primary/5 transition-colors">
+                      <tr key={item.resultKey} className={`hover:bg-primary/5 transition-colors ${item.visible === false ? 'opacity-50 grayscale' : ''}`}>
                         <td className="px-4 py-3 font-bold text-on-surface text-xs sm:text-sm flex items-center flex-wrap gap-2">
                           <div className="flex items-center gap-2">
-                            <Cpu className="h-4 w-4 text-primary shrink-0" />
+                            {item.type === 'ablation' ? (
+                              <FlaskConical className="h-4 w-4 text-tertiary shrink-0" />
+                            ) : (
+                              <Cpu className="h-4 w-4 text-primary shrink-0" />
+                            )}
                             <span className="truncate max-w-[120px] sm:max-w-none">{item.name}</span>
                           </div>
+                          
+                          {/* Type Badge */}
+                          <span className={`inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[9px] font-bold border ${item.type === 'ablation' ? 'bg-tertiary-container/20 text-tertiary border-tertiary-container/30' : 'bg-primary-container/20 text-primary border-primary-container/30'}`}>
+                            {item.type === 'ablation' ? 'Ablation' : 'Base Model'}
+                          </span>
+
                           {item.visible === false && (
                             <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[9px] font-bold bg-error-container/20 text-error border border-error-container/30">
                               <EyeOff className="h-2.5 w-2.5" />
@@ -760,7 +817,15 @@ export default function AdminPanel() {
                             </Link>
                             
                             <button
-                              onClick={() => handleDeleteModel(item._id, item.name)}
+                              onClick={() => handleToggleModelVisibility(item.type, item._id, item.clusterSize, item.visible)}
+                              className="p-2 rounded-default hover:bg-surface-container text-on-surface-variant hover:text-on-surface border border-outline-border/50 transition-all cursor-pointer"
+                              title={item.visible ? "Hide from Leaderboard" : "Show on Leaderboard"}
+                            >
+                              {item.visible ? <Eye className="h-3.5 w-3.5 shrink-0" /> : <EyeOff className="h-3.5 w-3.5 shrink-0" />}
+                            </button>
+                            
+                            <button
+                              onClick={() => handleDeleteModel(item.type, item._id, item.name)}
                               className="p-2 rounded-default hover:bg-error-container/20 text-on-surface-variant hover:text-error hover:border-error-container/30 border border-outline-border/50 transition-all cursor-pointer"
                               title="Delete Submission Record"
                             >
