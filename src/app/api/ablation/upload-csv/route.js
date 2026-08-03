@@ -62,11 +62,18 @@ export async function POST(req) {
     const kaggleUrl = body.kaggle_url || body.kaggleUrl;
 
     // Look up base model profile
-    const baseProfile = rawBaseModelName
+    let baseProfile = rawBaseModelName
       ? await ModelProfile.findOne({
           name: { $regex: new RegExp(`^${rawBaseModelName.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i') }
         })
       : null;
+
+    if (!baseProfile && rawBaseModelName) {
+      const escapedBase = rawBaseModelName.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+      baseProfile = await ModelProfile.findOne({
+        name: { $regex: new RegExp(`^${escapedBase}`, 'i') }
+      });
+    }
 
     // Load all dataset sections for matching
     const datasetSections = await DatasetSection.find({});

@@ -156,7 +156,11 @@ export async function POST(req) {
         }
 
         const seed = row.seed !== undefined && row.seed !== '' ? parseInt(row.seed, 10) : null;
-        const clusterAlgorithm = globalClusterAlgorithm || String(row.cluster_algorithm ?? row.algorithm ?? row.algo ?? 'unknown').trim();
+        let clusterAlgorithm = globalClusterAlgorithm || String(row.cluster_algorithm ?? row.algorithm ?? row.algo ?? '').trim();
+        if (!clusterAlgorithm) {
+          const match = modelNameClean.match(/\(([^)]+)\)$/);
+          clusterAlgorithm = match ? match[1].trim() : 'unknown';
+        }
 
         const parseFloat_ = (v) => (v !== undefined && v !== null && v !== '' ? parseFloat(v) : undefined);
 
@@ -188,7 +192,7 @@ export async function POST(req) {
 
         // Upsert: find existing (dataset, clusterAlgorithm, clusterSize, seed) pair
         const existingIdx = submission.results.findIndex(r => 
-          r.datasetSectionId.toString() === matchedSection._id.toString() &&
+          r.datasetSectionId && r.datasetSectionId.toString() === matchedSection._id.toString() &&
           r.clusterSize === clusterSize && 
           r.clusterAlgorithm === clusterAlgorithm &&
           (r.seed === seed || (r.seed === null && seed === null))
