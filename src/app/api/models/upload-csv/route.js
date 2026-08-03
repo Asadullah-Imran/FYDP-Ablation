@@ -150,7 +150,7 @@ export async function POST(req) {
         }
         const clusterSize = parseInt(row.no_cluster ?? row.noCluster ?? row.cluster_count ?? row.clusterSize, 10);
         if (isNaN(clusterSize) || clusterSize <= 0) {
-          summary.errors.push(`Row skipped: invalid no_cluster value '${row.no_cluster}' for dataset '${section.name}'`);
+          summary.errors.push(`Row skipped: invalid no_cluster value '${row.no_cluster}' for dataset '${matchedSection.name}'`);
           summary.skipped++;
           continue;
         }
@@ -212,7 +212,7 @@ export async function POST(req) {
 
     return NextResponse.json({
       message: 'CSV results uploaded successfully.',
-      modelName: profile.name,
+      modelName: rawModelName,
       total: summary.total,
       processed: summary.processed,
       skipped: summary.skipped,
