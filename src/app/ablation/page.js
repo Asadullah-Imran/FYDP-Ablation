@@ -6,7 +6,7 @@ import { useData } from '@/context/DataContext';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function AblationPage() {
-  const { sections, ablationModels, globalLoading: loading, fetchGlobalData } = useData();
+  const { sections, models, ablationModels, globalLoading: loading, fetchGlobalData } = useData();
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedBaseModel, setExpandedBaseModel] = useState(null);
   const [tableSortMetric, setTableSortMetric] = useState('ARI');
@@ -129,11 +129,12 @@ export default function AblationPage() {
           {filteredBaseNames.map(baseName => {
             const isExpanded = expandedBaseModel === baseName;
             const modelsForBase = baseModelsMap[baseName];
+            const baseModel = models.find(m => m.name === baseName);
             
-            // Get all unique datasets used by these ablation models
+            // Get all unique datasets used by these ablation models and the base model
             const datasetSectionsMap = new Map();
-            modelsForBase.forEach(model => {
-              (model.results || []).forEach(res => {
+            const gatherSections = (modelObj) => {
+              (modelObj?.results || []).forEach(res => {
                 const secId = res.datasetSectionId?._id || res.datasetSectionId;
                 if (!secId) return;
                 if (!datasetSectionsMap.has(secId)) {
@@ -141,7 +142,11 @@ export default function AblationPage() {
                   if (s) datasetSectionsMap.set(secId, s);
                 }
               });
-            });
+            };
+            
+            modelsForBase.forEach(gatherSections);
+            if (baseModel) gatherSections(baseModel);
+            
             const usedSections = Array.from(datasetSectionsMap.values());
 
             return (
@@ -197,8 +202,36 @@ export default function AblationPage() {
                       <p className="text-sm text-on-surface-variant italic">No dataset results found for this model.</p>
                     ) : (
                       usedSections.map(section => {
-                        // Gather ablation rows for this specific section
+                        // Gather rows for this specific section
                         const sectionRows = [];
+                        
+                        // Add base model rows if present
+                        if (baseModel) {
+                          const relevantResults = (baseModel.results || []).filter(r => 
+                            (r.datasetSectionId?._id || r.datasetSectionId) === section._id
+                          );
+                          if (relevantResults.length > 0) {
+                            const grouped = groupResultsByCluster(relevantResults);
+                            grouped.forEach(g => {
+                              sectionRows.push({
+                                _id: baseModel._id,
+                                resultKey: `${baseModel._id}-${g.clusterSize}-base`,
+                                name: baseModel.name,
+                                ablationTag: 'Base Model',
+                                isBaseModel: true,
+                                isStandalone: baseModel.isStandalone,
+                                clusterSize: g.clusterSize,
+                                runCount: g.runCount,
+                                meanARI: g.meanARI, stdARI: g.stdARI,
+                                meanNMI: g.meanNMI, stdNMI: g.stdNMI,
+                                meanSilhouette: g.meanSilhouette, stdSilhouette: g.stdSilhouette,
+                                meanCHI: g.meanCHI, stdCHI: g.stdCHI,
+                                meanDBI: g.meanDBI, stdDBI: g.stdDBI,
+                              });
+                            });
+                          }
+                        }
+
                         modelsForBase.forEach(model => {
                           const relevantResults = (model.results || []).filter(r => 
                             (r.datasetSectionId?._id || r.datasetSectionId) === section._id
@@ -253,7 +286,7 @@ export default function AblationPage() {
                                 <thead className="bg-surface-container-lowest border-b border-outline-variant text-xs uppercase font-semibold text-on-surface-variant tracking-wider font-outfit">
                                   <tr>
                                     <th className="px-4 py-3 w-12">Rank</th>
-                                    <th className="px-4 py-3">Ablation Variant</th>
+                                    <th className="px-4 py-3">Model / Variant</th>
                                     <th className="px-4 py-3 text-center">Clusters</th>
                                     <th onClick={() => setTableSortMetric('ARI')} className="px-4 py-3 text-center cursor-pointer hover:bg-surface-container-high/50 text-tertiary">ARI {tableSortMetric === 'ARI' ? '↓' : ''}</th>
                                     <th onClick={() => setTableSortMetric('NMI')} className="px-4 py-3 text-center cursor-pointer hover:bg-surface-container-high/50 text-secondary">NMI {tableSortMetric === 'NMI' ? '↓' : ''}</th>
@@ -263,15 +296,27 @@ export default function AblationPage() {
                                 </thead>
                                 <tbody className="divide-y divide-outline-variant bg-surface-container-lowest">
                                   {sectionRows.map((row, idx) => (
-                                    <tr key={row.resultKey} className="hover:bg-tertiary-container/[0.04] transition-colors">
-                                      <td className="px-4 py-3 font-semibold text-on-surface-variant">{idx + 1}</td>
+                                    <tr key={row.resultKey} className={`transition-colors ${row.isBaseModel ? 'bg-primary/5 hover:bg-primary/10' : 'hover:bg-tertiary-container/[0.04]'}`}>
+                                      <td className={`px-4 py-3 font-semibold ${row.isBaseModel ? 'text-primary' : 'text-on-surface-variant'}`}>{idx + 1}</td>
                                       <td className="px-4 py-3">
                                         <div className="flex flex-col gap-1">
-                                          <span className="font-bold text-on-surface truncate max-w-[200px] sm:max-w-xs">{row.name}</span>
+                                          <span className="font-bold text-on-surface truncate max-w-[200px] sm:max-w-xs flex items-center gap-2">
+                                            {row.name}
+                                            {row.isBaseModel && (
+                                              <span className="inline-flex px-1.5 py-0.5 rounded bg-primary/20 border border-primary/30 text-[10px] font-bold text-primary">
+                                                ORIGINAL
+                                              </span>
+                                            )}
+                                          </span>
                                           <div className="flex gap-2">
-                                            {row.ablationTag && (
+                                            {row.ablationTag && !row.isBaseModel && (
                                               <span className="inline-flex px-1.5 py-0.5 rounded bg-tertiary/10 border border-tertiary/20 text-[10px] font-bold text-tertiary">
                                                 Tag: {row.ablationTag}
+                                              </span>
+                                            )}
+                                            {row.isBaseModel && (
+                                              <span className="inline-flex px-1.5 py-0.5 rounded bg-primary/10 border border-primary/20 text-[10px] font-bold text-primary">
+                                                Base Model
                                               </span>
                                             )}
                                             <span className="inline-flex px-1.5 py-0.5 rounded bg-surface-container-high border border-outline text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">
@@ -286,8 +331,8 @@ export default function AblationPage() {
                                       <td className="px-4 py-3 font-mono text-center text-on-surface font-bold">{fmtMetric(row.meanSilhouette, row.stdSilhouette)}</td>
                                       <td className="px-4 py-3 text-right">
                                         <Link 
-                                          href={`/models/${row._id}?dataset=${section._id}&mode=ablation`}
-                                          className="inline-flex items-center justify-center p-1.5 rounded-full hover:bg-tertiary/10 text-tertiary transition-colors"
+                                          href={`/models/${row._id}?dataset=${section._id}&mode=${row.isBaseModel ? 'model' : 'ablation'}`}
+                                          className={`inline-flex items-center justify-center p-1.5 rounded-full transition-colors ${row.isBaseModel ? 'hover:bg-primary/20 text-primary' : 'hover:bg-tertiary/10 text-tertiary'}`}
                                           title="View Details"
                                         >
                                           <ArrowRight className="h-4 w-4" />
