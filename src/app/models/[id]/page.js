@@ -844,137 +844,176 @@ export default function ModelDetail() {
                 
                 {renderSensitivityChart()}
 
-                <div className="grid grid-cols-1 gap-4">
-                  {displayResults.map((res, index) => (
-                    <div key={index} className={`bg-surface-container-low border border-outline-border/60 rounded-default p-4.5 space-y-4 shadow-sm hover:shadow-md transition-shadow ${res.visible === false ? 'border-dashed border-outline/50 opacity-85' : ''}`}>
-                      <div className="flex justify-between items-center border-b border-outline-border/40 pb-2">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-primary font-outfit uppercase tracking-wider">
-                            Evaluation Config: {res.clusterSize} Clusters {res.clusterAlgorithm && res.clusterAlgorithm !== 'unknown' ? `(Algo: ${res.clusterAlgorithm})` : ''} {res.seed !== null && res.seed !== undefined ? `(Seed: ${res.seed})` : ''}
-                          </span>
-                          {res.visible === false && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-error-container/20 text-error border border-error-container/30">
-                              <EyeOff className="h-3 w-3" />
-                              Hidden from Dashboard
+                <div className="grid grid-cols-1 gap-6">
+                  {(() => {
+                    // Group results by clusterSize and compute mean ± std
+                    const groups = {};
+                    displayResults.forEach(res => {
+                      const k = res.clusterSize;
+                      if (!groups[k]) groups[k] = { clusterSize: k, runs: [], scoreARI: [], scoreNMI: [], scoreAMI: [], scoreSilhouette: [], scoreCHI: [], scoreDBI: [] };
+                      const g = groups[k];
+                      g.runs.push(res);
+                      if (res.scoreARI !== undefined && res.scoreARI !== null && !isNaN(res.scoreARI)) g.scoreARI.push(res.scoreARI);
+                      if (res.scoreNMI !== undefined && res.scoreNMI !== null && !isNaN(res.scoreNMI)) g.scoreNMI.push(res.scoreNMI);
+                      if (res.scoreAMI !== undefined && res.scoreAMI !== null && !isNaN(res.scoreAMI)) g.scoreAMI.push(res.scoreAMI);
+                      if (res.scoreSilhouette !== undefined && res.scoreSilhouette !== null && !isNaN(res.scoreSilhouette)) g.scoreSilhouette.push(res.scoreSilhouette);
+                      if (res.scoreCHI !== undefined && res.scoreCHI !== null && !isNaN(res.scoreCHI)) g.scoreCHI.push(res.scoreCHI);
+                      if (res.scoreDBI !== undefined && res.scoreDBI !== null && !isNaN(res.scoreDBI)) g.scoreDBI.push(res.scoreDBI);
+                    });
+                    
+                    const groupedResults = Object.values(groups).map(g => {
+                      const mean = (arr) => arr.length > 0 ? arr.reduce((s, v) => s + v, 0) / arr.length : null;
+                      const std = (arr) => { if (arr.length < 2) return null; const m = mean(arr); return Math.sqrt(arr.reduce((s, v) => s + (v - m) ** 2, 0) / arr.length); };
+                      return {
+                        clusterSize: g.clusterSize,
+                        runs: g.runs,
+                        meanARI: mean(g.scoreARI), stdARI: std(g.scoreARI),
+                        meanNMI: mean(g.scoreNMI), stdNMI: std(g.scoreNMI),
+                        meanAMI: mean(g.scoreAMI), stdAMI: std(g.scoreAMI),
+                        meanSilhouette: mean(g.scoreSilhouette), stdSilhouette: std(g.scoreSilhouette),
+                        meanCHI: mean(g.scoreCHI), stdCHI: std(g.scoreCHI),
+                        meanDBI: mean(g.scoreDBI), stdDBI: std(g.scoreDBI),
+                      };
+                    }).sort((a, b) => {
+                      if (b.meanARI !== null && a.meanARI !== null) return b.meanARI - a.meanARI;
+                      return b.clusterSize - a.clusterSize;
+                    });
+
+                    const fmtMetric = (mean, std) => {
+                      if (mean === null || mean === undefined) return '-';
+                      const m = mean.toFixed(3);
+                      if (std !== null && std !== undefined && !isNaN(std)) return `${m} ± ${std.toFixed(3)}`;
+                      return m;
+                    };
+
+                    return groupedResults.map((group, index) => (
+                      <div key={index} className="bg-surface-container-lowest border border-outline-border rounded-lg shadow-sm overflow-hidden">
+                        {/* Group Header: Mean ± Std */}
+                        <div className="bg-surface-container-low p-4 border-b border-outline-border/60 flex flex-col md:flex-row justify-between items-center gap-4">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-bold text-on-surface font-outfit uppercase tracking-wider">
+                              Cluster Size: {group.clusterSize}
                             </span>
-                          )}
-                        </div>
-                        {isAuthor && (
-                          <button
-                            type="button"
-                            onClick={() => toggleResultVisibility(res.clusterSize)}
-                            disabled={togglingSize !== null}
-                            className="text-on-surface-variant hover:text-primary transition-colors cursor-pointer p-1 rounded-default hover:bg-surface-container flex items-center justify-center shrink-0 border border-outline-border/30 disabled:opacity-50 disabled:cursor-not-allowed"
-                            title={res.visible === false ? "Show on Leaderboard" : "Hide from Leaderboard"}
-                          >
-                            {togglingSize === res.clusterSize ? (
-                              <RefreshCw className="h-3.5 w-3.5 animate-spin text-primary" />
-                            ) : res.visible === false ? (
-                              <EyeOff className="h-3.5 w-3.5 text-error" />
-                            ) : (
-                              <Eye className="h-3.5 w-3.5 text-primary" />
+                            <span className="inline-flex px-2 py-0.5 rounded-full bg-primary/10 border border-primary/20 text-[10px] font-bold text-primary uppercase tracking-wider">
+                              {group.runs.length} {group.runs.length === 1 ? 'Run' : 'Runs'}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 w-full md:w-auto">
+                            <div className="text-center bg-surface-container-lowest rounded p-1.5 border border-outline-border/40">
+                              <div className="text-[8px] text-primary uppercase font-extrabold tracking-wider">Avg ARI</div>
+                              <div className="text-xs font-mono text-primary font-bold">{fmtMetric(group.meanARI, group.stdARI)}</div>
+                            </div>
+                            <div className="text-center bg-surface-container-lowest rounded p-1.5 border border-outline-border/40">
+                              <div className="text-[8px] text-secondary uppercase font-extrabold tracking-wider">Avg NMI</div>
+                              <div className="text-xs font-mono text-secondary font-bold">{fmtMetric(group.meanNMI, group.stdNMI)}</div>
+                            </div>
+                            <div className="text-center bg-surface-container-lowest rounded p-1.5 border border-outline-border/40">
+                              <div className="text-[8px] text-tertiary uppercase font-extrabold tracking-wider">Avg Silh</div>
+                              <div className="text-xs font-mono text-tertiary font-bold">{fmtMetric(group.meanSilhouette, group.stdSilhouette)}</div>
+                            </div>
+                            {group.meanAMI !== null && (
+                              <div className="text-center bg-surface-container-lowest rounded p-1.5 border border-outline-border/40">
+                                <div className="text-[8px] text-emerald-600 uppercase font-extrabold tracking-wider">Avg AMI</div>
+                                <div className="text-xs font-mono text-emerald-600 font-bold">{fmtMetric(group.meanAMI, group.stdAMI)}</div>
+                              </div>
                             )}
-                          </button>
-                        )}
+                            {group.meanCHI !== null && (
+                              <div className="text-center bg-surface-container-lowest rounded p-1.5 border border-outline-border/40">
+                                <div className="text-[8px] text-amber-600 uppercase font-extrabold tracking-wider">Avg CHI</div>
+                                <div className="text-xs font-mono text-amber-600 font-bold">{fmtMetric(group.meanCHI, group.stdCHI)}</div>
+                              </div>
+                            )}
+                            {group.meanDBI !== null && (
+                              <div className="text-center bg-surface-container-lowest rounded p-1.5 border border-outline-border/40">
+                                <div className="text-[8px] text-purple-600 uppercase font-extrabold tracking-wider">Avg DBI</div>
+                                <div className="text-xs font-mono text-purple-600 font-bold">{fmtMetric(group.meanDBI, group.stdDBI)}</div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Individual Runs (Scrollable if many) */}
+                        <div className={`p-4 space-y-4 ${group.runs.length > 4 ? 'max-h-[400px] overflow-y-auto' : ''}`}>
+                          {group.runs.map((res, runIndex) => (
+                            <div key={runIndex} className={`bg-surface-container-low border border-outline-border/60 rounded-default p-4 space-y-3 shadow-sm hover:shadow-md transition-shadow ${res.visible === false ? 'border-dashed border-outline/50 opacity-85' : ''}`}>
+                              <div className="flex justify-between items-center border-b border-outline-border/40 pb-2">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[11px] font-bold text-on-surface-variant font-outfit uppercase tracking-wider">
+                                    Run #{runIndex + 1} {res.clusterAlgorithm && res.clusterAlgorithm !== 'unknown' ? `• Algo: ${res.clusterAlgorithm}` : ''} {res.seed !== null && res.seed !== undefined ? `• Seed: ${res.seed}` : ''}
+                                  </span>
+                                  {res.visible === false && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-error-container/20 text-error border border-error-container/30">
+                                      <EyeOff className="h-3 w-3" />
+                                      Hidden
+                                    </span>
+                                  )}
+                                </div>
+                                {isAuthor && (
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleResultVisibility(res.clusterSize)}
+                                    disabled={togglingSize !== null}
+                                    className="text-on-surface-variant hover:text-primary transition-colors cursor-pointer p-1 rounded-default hover:bg-surface-container flex items-center justify-center shrink-0 border border-outline-border/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    title={res.visible === false ? "Show on Leaderboard" : "Hide from Leaderboard"}
+                                  >
+                                    {togglingSize === res.clusterSize ? (
+                                      <RefreshCw className="h-3 w-3 animate-spin text-primary" />
+                                    ) : res.visible === false ? (
+                                      <EyeOff className="h-3 w-3 text-error" />
+                                    ) : (
+                                      <Eye className="h-3 w-3 text-primary" />
+                                    )}
+                                  </button>
+                                )}
+                              </div>
+
+                              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 w-full">
+                                <div className="bg-surface-container-lowest border border-outline-border/60 rounded p-2 text-center">
+                                  <div className="text-[9px] text-primary uppercase font-extrabold tracking-wider mb-0.5">ARI</div>
+                                  <div className="text-sm font-mono text-primary font-bold">
+                                    {res.scoreARI !== undefined && res.scoreARI !== null ? res.scoreARI.toFixed(3) : '-'}
+                                  </div>
+                                </div>
+                                <div className="bg-surface-container-lowest border border-outline-border/60 rounded p-2 text-center">
+                                  <div className="text-[9px] text-secondary uppercase font-extrabold tracking-wider mb-0.5">NMI</div>
+                                  <div className="text-sm font-mono text-secondary font-bold">
+                                    {res.scoreNMI !== undefined && res.scoreNMI !== null ? res.scoreNMI.toFixed(3) : '-'}
+                                  </div>
+                                </div>
+                                <div className="bg-surface-container-lowest border border-outline-border/60 rounded p-2 text-center">
+                                  <div className="text-[9px] text-tertiary uppercase font-extrabold tracking-wider mb-0.5">Silh</div>
+                                  <div className="text-sm font-mono text-tertiary font-bold">
+                                    {res.scoreSilhouette !== undefined && res.scoreSilhouette !== null ? res.scoreSilhouette.toFixed(3) : '-'}
+                                  </div>
+                                </div>
+                                <div className={`bg-surface-container-lowest border border-outline-border/60 rounded p-2 text-center ${res.scoreAMI === undefined || res.scoreAMI === null ? 'opacity-40' : ''}`}>
+                                  <div className="text-[9px] text-emerald-600 uppercase font-extrabold tracking-wider mb-0.5">AMI</div>
+                                  <div className="text-sm font-mono text-emerald-600 font-bold">
+                                    {res.scoreAMI !== undefined && res.scoreAMI !== null ? res.scoreAMI.toFixed(3) : '-'}
+                                  </div>
+                                </div>
+                                <div className={`bg-surface-container-lowest border border-outline-border/60 rounded p-2 text-center ${res.scoreCHI === undefined || res.scoreCHI === null ? 'opacity-40' : ''}`}>
+                                  <div className="text-[9px] text-amber-600 uppercase font-extrabold tracking-wider mb-0.5">CHI</div>
+                                  <div className="text-sm font-mono text-amber-600 font-bold">
+                                    {res.scoreCHI !== undefined && res.scoreCHI !== null ? res.scoreCHI.toFixed(3) : '-'}
+                                  </div>
+                                </div>
+                                <div className={`bg-surface-container-lowest border border-outline-border/60 rounded p-2 text-center ${res.scoreDBI === undefined || res.scoreDBI === null ? 'opacity-40' : ''}`}>
+                                  <div className="text-[9px] text-purple-600 uppercase font-extrabold tracking-wider mb-0.5">DBI</div>
+                                  <div className="text-sm font-mono text-purple-600 font-bold">
+                                    {res.scoreDBI !== undefined && res.scoreDBI !== null ? res.scoreDBI.toFixed(3) : '-'}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-
-                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 w-full">
-                        <div className="bg-surface-container-lowest border border-outline-border/60 rounded-default p-3 text-center">
-                          <div className="text-[9px] text-primary uppercase font-extrabold tracking-wider mb-1 font-outfit">ARI Score</div>
-                          <div className="text-lg font-mono text-primary font-extrabold">
-                            {res.scoreARI !== undefined && res.scoreARI !== null ? res.scoreARI.toFixed(3) : '-'}
-                          </div>
-                        </div>
-
-                        <div className="bg-surface-container-lowest border border-outline-border/60 rounded-default p-3 text-center">
-                          <div className="text-[9px] text-secondary uppercase font-extrabold tracking-wider mb-1 font-outfit">NMI Score</div>
-                          <div className="text-lg font-mono text-secondary font-extrabold">
-                            {res.scoreNMI !== undefined && res.scoreNMI !== null ? res.scoreNMI.toFixed(3) : '-'}
-                          </div>
-                        </div>
-
-                        <div className="bg-surface-container-lowest border border-outline-border/60 rounded-default p-3 text-center">
-                          <div className="text-[9px] text-tertiary uppercase font-extrabold tracking-wider mb-1 font-outfit">Silhouette</div>
-                          <div className="text-lg font-mono text-tertiary font-extrabold">
-                            {res.scoreSilhouette !== undefined && res.scoreSilhouette !== null ? res.scoreSilhouette.toFixed(3) : '-'}
-                          </div>
-                        </div>
-
-                        <div className={`bg-surface-container-lowest border border-outline-border/60 rounded-default p-3 text-center ${res.scoreAMI === undefined || res.scoreAMI === null ? 'opacity-40' : ''}`}>
-                          <div className="text-[9px] text-emerald-600 dark:text-emerald-400 uppercase font-extrabold tracking-wider mb-1 font-outfit">AMI Score</div>
-                          <div className="text-lg font-mono text-emerald-600 dark:text-emerald-400 font-extrabold">
-                            {res.scoreAMI !== undefined && res.scoreAMI !== null ? res.scoreAMI.toFixed(3) : '-'}
-                          </div>
-                        </div>
-
-                        <div className={`bg-surface-container-lowest border border-outline-border/60 rounded-default p-3 text-center ${res.scoreCHI === undefined || res.scoreCHI === null ? 'opacity-40' : ''}`}>
-                          <div className="text-[9px] text-amber-600 dark:text-amber-500 uppercase font-extrabold tracking-wider mb-1 font-outfit">CHI Score</div>
-                          <div className="text-lg font-mono text-amber-600 dark:text-amber-500 font-extrabold">
-                            {res.scoreCHI !== undefined && res.scoreCHI !== null ? res.scoreCHI.toFixed(3) : '-'}
-                          </div>
-                        </div>
-
-                        <div className={`bg-surface-container-lowest border border-outline-border/60 rounded-default p-3 text-center ${res.scoreDBI === undefined || res.scoreDBI === null ? 'opacity-40' : ''}`}>
-                          <div className="text-[9px] text-purple-600 dark:text-purple-400 uppercase font-extrabold tracking-wider mb-1 font-outfit">DBI Score</div>
-                          <div className="text-lg font-mono text-purple-600 dark:text-purple-400 font-extrabold">
-                            {res.scoreDBI !== undefined && res.scoreDBI !== null ? res.scoreDBI.toFixed(3) : '-'}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                    ));
+                  })()}
                 </div>
               </div>
             </div>
-
-            {/* Methodology Prose Section */}
-            <div className="prose max-w-none">
-              <h2 className="text-xl font-bold font-outfit border-b border-outline-border pb-2.5 mb-6 text-on-surface flex items-center gap-2">
-                <BookOpen className="h-5 w-5 text-primary-container" />
-                Methodology
-              </h2>
-              <div className="text-on-surface-variant leading-relaxed text-sm space-y-4">
-                <ReactMarkdown 
-                  remarkPlugins={[remarkMath]}
-                  rehypePlugins={[rehypeKatex]}
-                >
-                  {model.descriptionMarkdown}
-                </ReactMarkdown>
-              </div>
-            </div>
-
-            {/* Findings Prose Section */}
-            {model.findingsMarkdown && model.findingsMarkdown.trim() !== '' && (
-              <div className="prose max-w-none">
-                <h2 className="text-xl font-bold font-outfit border-b border-outline-border pb-2.5 mb-6 text-on-surface flex items-center gap-2">
-                  <BookOpen className="h-5 w-5 text-secondary" />
-                  Findings & Insights
-                </h2>
-                <div className="text-on-surface-variant leading-relaxed text-sm space-y-4">
-                  <ReactMarkdown 
-                    remarkPlugins={[remarkMath]}
-                    rehypePlugins={[rehypeKatex]}
-                  >
-                    {model.findingsMarkdown}
-                  </ReactMarkdown>
-                </div>
-              </div>
-            )}
-
-            {/* Architecture Flow Diagram */}
-            {model.architectureFlow && (
-              <div className="space-y-4">
-                <h2 className="text-xl font-bold font-outfit border-b border-outline-border pb-2.5 mb-6 text-on-surface flex items-center gap-2">
-                  <Layers className="h-5 w-5 text-primary-container" />
-                  Model Pipeline Graph
-                </h2>
-                <div className="bg-surface-container-low p-6 rounded-default border border-outline-border overflow-x-auto flex justify-center shadow-sm">
-                  <div className="mermaid bg-transparent">
-                    {model.architectureFlow}
-                  </div>
-                </div>
-              </div>
-            )}
 
             {/* Gallery / Methodology Images */}
             {model.methodologyImages && model.methodologyImages.length > 0 && (
@@ -996,6 +1035,55 @@ export default function ModelDetail() {
                 </div>
               </div>
             )}
+
+            {/* Architecture Flow Diagram */}
+            {model.architectureFlow && (
+              <div className="space-y-4">
+                <h2 className="text-xl font-bold font-outfit border-b border-outline-border pb-2.5 mb-6 text-on-surface flex items-center gap-2">
+                  <Layers className="h-5 w-5 text-primary-container" />
+                  Model Pipeline Graph
+                </h2>
+                <div className="bg-surface-container-low p-6 rounded-default border border-outline-border overflow-x-auto flex justify-center shadow-sm">
+                  <div className="mermaid bg-transparent">
+                    {model.architectureFlow}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Findings Prose Section */}
+            {model.findingsMarkdown && model.findingsMarkdown.trim() !== '' && (
+              <div className="prose max-w-none">
+                <h2 className="text-xl font-bold font-outfit border-b border-outline-border pb-2.5 mb-6 text-on-surface flex items-center gap-2">
+                  <BookOpen className="h-5 w-5 text-secondary" />
+                  Findings & Insights
+                </h2>
+                <div className="text-on-surface-variant leading-relaxed text-sm space-y-4">
+                  <ReactMarkdown 
+                    remarkPlugins={[remarkMath]}
+                    rehypePlugins={[rehypeKatex]}
+                  >
+                    {model.findingsMarkdown}
+                  </ReactMarkdown>
+                </div>
+              </div>
+            )}
+
+            {/* Methodology Prose Section */}
+            <div className="prose max-w-none">
+              <h2 className="text-xl font-bold font-outfit border-b border-outline-border pb-2.5 mb-6 text-on-surface flex items-center gap-2">
+                <BookOpen className="h-5 w-5 text-primary-container" />
+                Methodology
+              </h2>
+              <div className="text-on-surface-variant leading-relaxed text-sm space-y-4">
+                <ReactMarkdown 
+                  remarkPlugins={[remarkMath]}
+                  rehypePlugins={[rehypeKatex]}
+                >
+                  {model.descriptionMarkdown}
+                </ReactMarkdown>
+              </div>
+            </div>
           </div>
         ) : (
           /* DYNAMIC EDIT FORM VIEW */
