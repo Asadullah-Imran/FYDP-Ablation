@@ -2,12 +2,9 @@
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { useRouter } from 'next/navigation';
-import { Check, ChevronsUpDown, Search, Eye, Edit3, UploadCloud, Info, BookOpen, ArrowLeft, Code, Trash2, Image as ImageIcon, Play, Terminal, FileSpreadsheet, PlusCircle } from 'lucide-react';
-import ReactMarkdown from 'react-markdown';
+import { Check, ChevronsUpDown, Search, Eye, Edit3, UploadCloud, Info, BookOpen, ArrowLeft, Code, Trash2, Image as ImageIcon, Play, Terminal, FileSpreadsheet, PlusCircle, FileText } from 'lucide-react';
+import MarkdownRenderer from '@/components/MarkdownRenderer';
 import Papa from 'papaparse';
-import remarkMath from 'remark-math';
-import rehypeKatex from 'rehype-katex';
-import 'katex/dist/katex.min.css';
 import { usePopup } from '@/context/PopupContext';
 import { useData } from '@/context/DataContext';
 import { useAuth } from '@/context/AuthContext';
@@ -882,6 +879,25 @@ export default function SubmitModel() {
                     <BookOpen className="h-4 w-4 text-primary-container" />
                     Methodology Explanation (Markdown + LaTeX)
                   </label>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <label className="cursor-pointer inline-flex items-center gap-1 px-3 py-1.5 rounded-default text-xs font-bold bg-surface-container-low hover:bg-surface-container text-on-surface border border-outline-border transition-all shadow-xs">
+                    <FileText className="h-3.5 w-3.5 text-primary-container" />
+                    Import .md File
+                    <input
+                      type="file"
+                      accept=".md,.txt,.markdown"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files[0];
+                        if (!file) return;
+                        const reader = new FileReader();
+                        reader.onload = (event) => {
+                          setFormData(prev => ({ ...prev, descriptionMarkdown: event.target.result }));
+                        };
+                        reader.readAsText(file);
+                      }}
+                    />
+                  </label>
                   <div className="flex bg-surface-container-low p-0.5 rounded-default border border-outline-border">
                     <button
                       type="button"
@@ -909,36 +925,30 @@ export default function SubmitModel() {
                     </button>
                   </div>
                 </div>
-                
-                {activeTab === 'write' ? (
-                  <textarea 
-                    name="descriptionMarkdown" 
-                    value={formData.descriptionMarkdown} 
-                    onChange={handleChange} 
-                    required 
-                    rows={8}
-                    className="w-full bg-surface-container-lowest border border-outline-border rounded-default px-3 py-2 text-on-surface focus:outline-none focus:border-primary-container focus:ring-2 focus:ring-primary-container/20 transition-all font-mono text-sm leading-relaxed"
-                    placeholder="Write your methodology explanation using Markdown and LaTeX equations... (e.g. Write equations like $$E = mc^2$$ or inline $x^2$)"
-                  ></textarea>
-                ) : (
-                  <div className="w-full bg-surface-container-low border border-outline-border rounded-default p-6 min-h-[178px] prose dark:prose-invert text-on-surface max-w-none overflow-y-auto">
-                    {formData.descriptionMarkdown.trim() ? (
-                      <div className="leading-relaxed text-sm">
-                        <ReactMarkdown 
-                          remarkPlugins={[remarkMath]}
-                          rehypePlugins={[rehypeKatex]}
-                        >
-                          {formData.descriptionMarkdown}
-                        </ReactMarkdown>
-                      </div>
-                    ) : (
-                      <div className="text-on-surface-variant italic text-xs text-center pt-10 flex flex-col items-center gap-2">
-                        <Info className="h-5 w-5 text-on-surface-variant/40" />
-                        Nothing to preview. Select the &apos;Editor&apos; tab to add methodology text.
-                      </div>
-                    )}
-                  </div>
-                )}
+              </div>
+              
+              {activeTab === 'write' ? (
+                <textarea 
+                  name="descriptionMarkdown" 
+                  value={formData.descriptionMarkdown} 
+                  onChange={handleChange} 
+                  required 
+                  rows={8}
+                  className="w-full bg-surface-container-lowest border border-outline-border rounded-default px-3 py-2 text-on-surface focus:outline-none focus:border-primary-container focus:ring-2 focus:ring-primary-container/20 transition-all font-mono text-sm leading-relaxed"
+                  placeholder="Write your methodology explanation using Markdown and LaTeX equations... (e.g. Write equations like $$E = mc^2$$ or inline $x^2$)"
+                ></textarea>
+              ) : (
+                <div className="w-full bg-surface-container-low border border-outline-border rounded-default p-6 min-h-[178px] text-on-surface max-w-none overflow-y-auto">
+                  {formData.descriptionMarkdown.trim() ? (
+                    <MarkdownRenderer content={formData.descriptionMarkdown} />
+                  ) : (
+                    <div className="text-on-surface-variant italic text-xs text-center pt-10 flex flex-col items-center gap-2">
+                      <Info className="h-5 w-5 text-on-surface-variant/40" />
+                      Nothing to preview. Select the &apos;Editor&apos; tab to add methodology text.
+                    </div>
+                  )}
+                </div>
+              )}
               </div>
 
               <div>

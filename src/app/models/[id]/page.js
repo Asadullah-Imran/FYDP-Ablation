@@ -3,15 +3,12 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import axios from 'axios';
-import ReactMarkdown from 'react-markdown';
-import remarkMath from 'remark-math';
-import rehypeKatex from 'rehype-katex';
-import 'katex/dist/katex.min.css';
-import mermaid from 'mermaid';
+import MarkdownRenderer from '@/components/MarkdownRenderer';
+import MermaidRenderer from '@/components/MermaidRenderer';
 import { useAuth } from '@/context/AuthContext';
 import { usePopup } from '@/context/PopupContext';
 import { useData } from '@/context/DataContext';
-import { Edit2, Trash2, Check, X, Eye, EyeOff, Edit3, ChevronsUpDown, Search, Image as ImageIcon, ArrowLeft, Cpu, Layers, BookOpen, AlertTriangle, Code, ExternalLink, Info, RefreshCw, Play, Terminal, Activity } from 'lucide-react';
+import { Edit2, Trash2, Check, X, Eye, EyeOff, Edit3, ChevronsUpDown, Search, Image as ImageIcon, ArrowLeft, Cpu, Layers, BookOpen, AlertTriangle, Code, ExternalLink, Info, RefreshCw, Play, Terminal, Activity, FileText } from 'lucide-react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
 
@@ -135,22 +132,7 @@ export default function ModelDetail() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  useEffect(() => {
-    if (model?.architectureFlow && !isEditing) {
-      try {
-        // Initialize mermaid with simple styling compatible with light mode
-        mermaid.initialize({ 
-          startOnLoad: true, 
-          theme: 'neutral',
-          securityLevel: 'loose',
-          fontFamily: 'Inter'
-        });
-        mermaid.contentLoaded();
-      } catch (e) {
-        console.error('Mermaid render error:', e);
-      }
-    }
-  }, [model, isEditing]);
+
 
   // Click outside to close dropdown in edit mode
   useEffect(() => {
@@ -1045,46 +1027,28 @@ export default function ModelDetail() {
                   <Layers className="h-5 w-5 text-primary-container" />
                   Model Pipeline Graph
                 </h2>
-                <div className="bg-surface-container-low p-6 rounded-default border border-outline-border overflow-x-auto flex justify-center shadow-sm">
-                  <div className="mermaid bg-transparent">
-                    {model.architectureFlow}
-                  </div>
-                </div>
+                <MermaidRenderer chart={model.architectureFlow} />
               </div>
             )}
 
             {/* Findings Prose Section */}
             {model.findingsMarkdown && model.findingsMarkdown.trim() !== '' && (
-              <div className="prose max-w-none">
+              <div className="space-y-4">
                 <h2 className="text-xl font-bold font-outfit border-b border-outline-border pb-2.5 mb-6 text-on-surface flex items-center gap-2">
                   <BookOpen className="h-5 w-5 text-secondary" />
                   Findings & Insights
                 </h2>
-                <div className="text-on-surface-variant leading-relaxed text-sm space-y-4">
-                  <ReactMarkdown 
-                    remarkPlugins={[remarkMath]}
-                    rehypePlugins={[rehypeKatex]}
-                  >
-                    {model.findingsMarkdown}
-                  </ReactMarkdown>
-                </div>
+                <MarkdownRenderer content={model.findingsMarkdown} />
               </div>
             )}
 
             {/* Methodology Prose Section */}
-            <div className="prose max-w-none">
+            <div className="space-y-4">
               <h2 className="text-xl font-bold font-outfit border-b border-outline-border pb-2.5 mb-6 text-on-surface flex items-center gap-2">
                 <BookOpen className="h-5 w-5 text-primary-container" />
                 Methodology
               </h2>
-              <div className="text-on-surface-variant leading-relaxed text-sm space-y-4">
-                <ReactMarkdown 
-                  remarkPlugins={[remarkMath]}
-                  rehypePlugins={[rehypeKatex]}
-                >
-                  {model.descriptionMarkdown}
-                </ReactMarkdown>
-              </div>
+              <MarkdownRenderer content={model.descriptionMarkdown} />
             </div>
           </div>
         ) : (
@@ -1395,31 +1359,51 @@ export default function ModelDetail() {
                   <BookOpen className="h-4 w-4 text-primary-container" />
                   Methodology Explanation (Markdown + LaTeX)
                 </label>
-                <div className="flex bg-surface-container-low p-0.5 rounded-default border border-outline-border">
-                  <button
-                    type="button"
-                    onClick={() => setEditTab('write')}
-                    className={`flex items-center gap-1 px-3 py-1.5 rounded-default text-xs font-bold cursor-pointer transition-all ${
-                      editTab === 'write'
-                        ? 'bg-primary-container text-white shadow-sm'
-                        : 'text-on-surface-variant hover:text-on-surface'
-                    }`}
-                  >
-                    <Edit3 className="h-3 w-3" />
-                    Editor
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setEditTab('preview')}
-                    className={`flex items-center gap-1 px-3 py-1.5 rounded-default text-xs font-bold cursor-pointer transition-all ${
-                      editTab === 'preview'
-                        ? 'bg-primary-container text-white shadow-sm'
-                        : 'text-on-surface-variant hover:text-on-surface'
-                    }`}
-                  >
-                    <Eye className="h-3 w-3" />
-                    Preview
-                  </button>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <label className="cursor-pointer inline-flex items-center gap-1 px-3 py-1.5 rounded-default text-xs font-bold bg-surface-container-low hover:bg-surface-container text-on-surface border border-outline-border transition-all shadow-xs">
+                    <FileText className="h-3.5 w-3.5 text-primary-container" />
+                    Import .md File
+                    <input
+                      type="file"
+                      accept=".md,.txt,.markdown"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files[0];
+                        if (!file) return;
+                        const reader = new FileReader();
+                        reader.onload = (event) => {
+                          setEditData(prev => ({ ...prev, descriptionMarkdown: event.target.result }));
+                        };
+                        reader.readAsText(file);
+                      }}
+                    />
+                  </label>
+                  <div className="flex bg-surface-container-low p-0.5 rounded-default border border-outline-border">
+                    <button
+                      type="button"
+                      onClick={() => setEditTab('write')}
+                      className={`flex items-center gap-1 px-3 py-1.5 rounded-default text-xs font-bold cursor-pointer transition-all ${
+                        editTab === 'write'
+                          ? 'bg-primary-container text-white shadow-sm'
+                          : 'text-on-surface-variant hover:text-on-surface'
+                      }`}
+                    >
+                      <Edit3 className="h-3 w-3" />
+                      Editor
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditTab('preview')}
+                      className={`flex items-center gap-1 px-3 py-1.5 rounded-default text-xs font-bold cursor-pointer transition-all ${
+                        editTab === 'preview'
+                          ? 'bg-primary-container text-white shadow-sm'
+                          : 'text-on-surface-variant hover:text-on-surface'
+                      }`}
+                    >
+                      <Eye className="h-3 w-3" />
+                      Preview
+                    </button>
+                  </div>
                 </div>
               </div>
               
@@ -1433,16 +1417,9 @@ export default function ModelDetail() {
                   className="w-full bg-surface-container-lowest border border-outline-border rounded-default px-3 py-2 text-on-surface focus:outline-none focus:border-primary-container focus:ring-2 focus:ring-primary-container/20 transition-all font-mono text-sm leading-relaxed"
                 ></textarea>
               ) : (
-                <div className="w-full bg-surface-container-low border border-outline-border rounded-default p-6 min-h-[178px] prose dark:prose-invert text-on-surface max-w-none overflow-y-auto">
+                <div className="w-full bg-surface-container-low border border-outline-border rounded-default p-6 min-h-[178px] text-on-surface max-w-none overflow-y-auto">
                   {editData.descriptionMarkdown.trim() ? (
-                    <div className="leading-relaxed text-sm">
-                      <ReactMarkdown 
-                        remarkPlugins={[remarkMath]}
-                        rehypePlugins={[rehypeKatex]}
-                      >
-                        {editData.descriptionMarkdown}
-                      </ReactMarkdown>
-                    </div>
+                    <MarkdownRenderer content={editData.descriptionMarkdown} />
                   ) : (
                     <div className="text-on-surface-variant italic text-xs text-center pt-10 flex flex-col items-center gap-2">
                       <Info className="h-5 w-5 text-on-surface-variant/40" />
