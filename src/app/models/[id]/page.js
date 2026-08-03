@@ -71,6 +71,7 @@ export default function ModelDetail() {
   const [model, setModel] = useState(null);
   const [loading, setLoading] = useState(true);
   const [togglingSize, setTogglingSize] = useState(null);
+  const [fullscreenImage, setFullscreenImage] = useState(null);
   
   // Editing states
   const [isEditing, setIsEditing] = useState(false);
@@ -1030,6 +1031,7 @@ export default function ModelDetail() {
                       src={img} 
                       alt={`Methodology Formulation ${idx + 1}`} 
                       className="rounded-default border border-outline-border w-full object-cover max-h-80 hover:scale-[1.01] transition-all shadow-sm cursor-zoom-in"
+                      onClick={() => setFullscreenImage(img)}
                     />
                   ))}
                 </div>
@@ -1603,6 +1605,31 @@ export default function ModelDetail() {
           </form>
         )}
       </div>
+
+      {/* Fullscreen Image Modal */}
+      {fullscreenImage && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200"
+          onClick={() => setFullscreenImage(null)}
+        >
+          <div className="relative max-w-7xl max-h-screen w-full h-full flex items-center justify-center">
+            <button 
+              className="absolute top-4 right-4 bg-black/50 hover:bg-black/80 text-white rounded-full p-2 transition-colors z-50 cursor-pointer"
+              onClick={() => setFullscreenImage(null)}
+              title="Close Fullscreen"
+            >
+              <X className="h-6 w-6" />
+            </button>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img 
+              src={fullscreenImage} 
+              alt="Fullscreen Methodology View" 
+              className="max-w-full max-h-[90vh] object-contain rounded shadow-2xl cursor-zoom-out"
+              onClick={(e) => e.stopPropagation()} 
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
